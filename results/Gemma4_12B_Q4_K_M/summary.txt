@@ -1,0 +1,9 @@
+Model: Gemma4_12B_Q4_K_M
+Model Key: google/gemma-4-12b
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 31.472
+Average TTFT: 1.879 sec

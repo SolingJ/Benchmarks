@@ -1,0 +1,248 @@
+\begin{enumerate}
+    \item[$(1)$] 円錐$C$の表面は，$z=1-\sqrt{x^2+y^2}$（側面）および$z=0$（底面）で構成される．
+    直線$\ell$上の点$P(t)$は$P(t)=(\cos t, 0, 1-\cos t)$であり，$\ell$の方向ベクトルは$\vec{v}=(1,0,-1)$である．
+    平面$H$は$\ell$に垂直で，$P(t)$を通るため，その方程式は
+    $$z-x = 1-2\cos t$$
+    と表せる．
+    立体$C'$は$C$を$\ell$の周りに回転させたものなので，平面$H$と$C'$の共通部分の断面$S(t)$は，$\ell$に対して$P(t)$を中心として$R(t)$の半径を持つ円板である．
+    半径$R(t)$は，平面$H$と$C$の共通部分$C \cap H$上の点から$P(t)$までの距離の最大値に等しい．
+    平面$H$と底面$z=0$との交線は$x = 1-2\cos t = k$（$z=0$）であり，円板$C$の境界$z=0, x^2+y^2 \le 1$との交点では
+    $$x = 2\cos t - 1$$
+    となる．
+    底面上の点$(x,y,0)$における$P(t)$からの距離の2乗は
+    $$D^2 = (x-\cos t)^2 + y^2 + (1-\cos t)^2$$
+    である．この点$(x,y,0)$は，底面の円$D_0: x^2+y^2 \le 1$上にあるので，$x$は$2\cos t-1$，$y^2 \le 1-(2\cos t-1)^2$を満足する．
+    距離を最大化するには$y^2$を最大にとるべきであり，$y^2 = 1-(2\cos t-1)^2$とすると，
+    $$R(t)^2 = (2\cos t - 1 - \cos t)^2 + 1 - (2\cos t - 1)^2 + (1-\cos t)^2$$
+    $$= (\cos t - 1)^2 + 1 - (4\cos^2 t - 4\cos t + 1) + (1 - 2\cos t + \cos^2 t)$$
+    $$= 1 - 2\cos t + \cos^2 t + 1 - 4\cos^2 t + 4\cos t - 1 + 1 - 2\cos t + \cos^2 t$$
+    $$= 2 - 2\cos^2 t = 2\sin^2 t$$
+    となり，このとき側面との境界点でも同様の値をとるため，$R(t)^2 = 2\sin^2 t$が最大距離である．
+    よって，面積$S(t)$は
+    $$S(t) = \pi R(t)^2 = 2\pi \sin^2 t$$
+    となる．
+
+    \item[$(2)$] 体積$V$は，断面の面積$S(t)$を軸$\ell$に沿って積分することで求められる．
+    軸$\ell$上の弧長要素は，$P(t)=(\cos t, 0, 1-\cos t)$より
+    $$ds = \sqrt{dx^2 + dz^2} = \sqrt{(-\sin t dt)^2 + (\sin t dt)^2} = \sqrt{2} \sin t \, dt$$
+    となる．
+    $t$は$0 \leqq t \leqq \dfrac{\pi}{2}$の範囲を動くが，$P(t)$は$t$が増加するに従って頂点$V$側に移動し，$t$が減少するに従って底面の点$A$側に移動する．
+    $V$は$t=\pi/2$，$A$は$t=0$に対応する．
+    積分は$P(t)$が$V$から$A$まで動く区間に対応するので，$V = \int_{\pi/2}^{0} S(t) \, ds$または絶対値を取って$\int_{0}^{\pi/2}$とする．
+    $$V = \int_{0}^{\pi/2} 2\pi \sin^2 t \cdot (\sqrt{2} \sin t) \, dt = 2\sqrt{2}\pi \int_{0}^{\pi/2} \sin^3 t \, dt$$
+    $$\int_{0}^{\pi/2} \sin^3 t \, dt = \int_{0}^{\pi/2} (1-\cos^2 t)\sin t \, dt \quad (\text{置換 } u = \cos t)$$
+    $$= \int_{1}^{0} (1-u^2)(-du) = \int_{0}^{1} (1-u^2) \, du = \left[u - \frac{u^3}{3}\right]_0^1 = \frac{2}{3}$$
+    よって，
+    $$V = 2\sqrt{2}\pi \cdot \frac{2}{3} = \frac{4\sqrt{2}}{3}\pi$$
+    \end{enumerate}
+
+\end{document}
+
+\begin{enumerate}
+    \item[$(1)$]
+    円錐$C$の表面は，$z=1-\sqrt{x^2+y^2}$（側面）および$z=0$（底面）で構成される．
+    直線$\ell$上の点$P(t)$は$P(t)=(\cos t, 0, 1-\cos t)$であり，$\ell$の方向ベクトルは$\vec{v}=(1,0,-1)$である．
+    平面$H$は$\ell$に垂直で，$P(t)$を通るため，その方程式は
+    $$z-x = 1-2\cos t$$
+    と表せる．
+    立体$C'$は$C$を$\ell$の周りに回転させたものなので，平面$H$と$C'$の共通部分の断面$S(t)$は，$\ell$に対して$P(t)$を中心として$R(t)$の半径を持つ円板である．
+    半径$R(t)$は，平面$H$と$C$の共通部分$C \cap H$上の点から$P(t)$までの距離の最大値に等しい．
+    平面$H$と底面$z=0$との交線は$x = 1-2\cos t = k$（$z=0$）であり，円板$C$の境界$z=0, x^2+y^2 \le 1$との交点では
+    $$x = 2\cos t - 1$$
+    となる．
+    底面上の点$(x,y,0)$における$P(t)$からの距離の2乗は
+    $$D^2 = (x-\cos t)^2 + y^2 + (1-\cos t)^2$$
+    である．この点$(x,y,0)$は，底面の円$D_0: x^2+y^2 \le 1$上にあるので，$x$は$2\cos t-1$，$y^2 \le 1-(2\cos t-1)^2$を満足する．
+    距離を最大化するには$y^2$を最大にとるべきであり，$y^2 = 1-(2\cos t-1)^2$とすると，
+    $$R(t)^2 = (2\cos t - 1 - \cos t)^2 + 1 - (2\cos t - 1)^2 + (1-\cos t)^2$$
+    $$= (\cos t - 1)^2 + 1 - (4\cos^2 t - 4\cos t + 1) + (1 - 2\cos t + \cos^2 t)$$
+    $$= 1 - 2\cos t + \cos^2 t + 1 - 4\cos^2 t + 4\cos t - 1 + 1 - 2\cos t + \cos^2 t$$
+    $$= 2 - 2\cos^2 t = 2\sin^2 t$$
+    となり，このとき側面との境界点でも同様の値をとるため，$R(t)^2 = 2\sin^2 t$が最大距離である．
+    よって，面積$S(t)$は
+    $$S(t) = \pi R(t)^2 = 2\pi \sin^2 t$$
+    となる．
+
+    \item[$(2)$]
+    体積$V$は，断面の面積$S(t)$を軸$\ell$に沿って積分することで求められる．
+    軸$\ell$上の弧長要素は，$P(t)=(\cos t, 0, 1-\cos t)$より
+    $$ds = \sqrt{dx^2 + dz^2} = \sqrt{(-\sin t dt)^2 + (\sin t dt)^2} = \sqrt{2} \sin t \, dt$$
+    となる．
+    $t$は$0 \leqq t \leqq \dfrac{\pi}{2}$の範囲を動くが，$P(t)$は$t$が増加するに従って頂点$V$側に移動し，$t$が減少するに従って底面の点$A$側に移動する．
+    $V$は$t=\pi/2$，$A$は$t=0$に対応する．
+    積分は$P(t)$が$V$から$A$まで動く区間に対応するので，$V = \int_{\pi/2}^{0} S(t) \, ds$または絶対値を取って$\int_{0}^{\pi/2}$とする．
+    $$V = \int_{0}^{\pi/2} 2\pi \sin^2 t \cdot (\sqrt{2} \sin t) \, dt = 2\sqrt{2}\pi \int_{0}^{\pi/2} \sin^3 t \, dt$$
+    $$\int_{0}^{\pi/2} \sin^3 t \, dt = \int_{0}^{\pi/2} (1-\cos^2 t)\sin t \, dt \quad (\text{置換 } u = \cos t)$$
+    $$= \int_{1}^{0} (1-u^2)(-du) = \int_{0}^{1} (1-u^2) \, du = \left[u - \frac{u^3}{3}\right]_0^1 = \frac{2}{3}$$
+    よって，
+    $$V = 2\sqrt{2}\pi \cdot \frac{2}{3} = \frac{4\sqrt{2}}{3}\pi$$
+    \end{enumerate}
+
+    $$V = \frac{4\sqrt{2}}{3}\pi$$
+\end{answer}
+
+Wait, I need to output in the specified format.
+The question asks for the solution in TeX.
+I will reformat the final output to match the request exactly.
+
+Double check the question: "H and C' common part area S(t)".
+My derivation $S(t) = 2\pi \sin^2 t$.
+"V using the result".
+$V = \frac{4\sqrt{2}}{3}\pi$.
+
+The logic holds.
+The cross section is a disk.
+The radius is determined by the distance to the base boundary.
+The formula matches.
+The integration matches.
+The result is plausible.
+
+One final check on the text:
+The prompt asks for "解答はTeX形式で出力せよ".
+I will provide the full solution in LaTeX.
+
+Wait, I should check if there is any ambiguity about "C' volume".
+$C'$ is the solid generated by rotating $C$ around $\ell$.
+Since $\ell$ lies on the boundary of $C$, $C'$ is the union of the rotated surface.
+The volume formula $V = \int S(t) ds$ is correct for solids of revolution.
+
+One small detail:
+The question says "H and C' common part".
+$C'$ is the solid. $H$ is the plane.
+The intersection is a disk.
+Area is $\pi R^2$.
+The radius is the max distance from $P(t)$ to $C \cap H$.
+The calculation holds.
+
+Final check on the integral:
+$\int \sin^3 t = 2/3$.
+$2\sqrt{2}\pi \times 2/3 = 4\sqrt{2}\pi/3$.
+Correct.
+
+Ready to write.
+The prompt asks for (1) and (2).
+I will write (1) then (2).
+Ensure the LaTeX is valid.
+I will use the derived expressions.
+I will write the solution clearly.
+
+One thing to check: Is $S(t)$ defined for $t=0$?
+At $t=0$, $\sin t = 0$, $S(0) = 0$. Correct, as $P(0)$ is on the axis and the cross section radius is 0 (tangent point).
+At $t=\pi/2$, $\sin t = 1$, $S(\pi/2) = 2\pi$. Radius $\sqrt{2}$.
+Distance from $V(0,0,1)$ to base rim is $\sqrt{1^2+1^2}=\sqrt{2}$.
+Correct.
+
+I'll structure the response.
+Step 1: Determine the radius $R(t)$ of the cross-section $S(t)$.
+Step 2: Integrate $S(t)$ along the axis $\ell$ to find the volume $V$.
+The parameter $t$ corresponds to the position on the axis.
+The arc length element $ds = \sqrt{2}\sin t dt$.
+The limits of integration are from $t=0$ to $t=\pi/2$ (or vice versa with sign change).
+Since volume is positive, integrate from $0$ to $\pi/2$.
+
+Wait, the prompt defines $0 \le t \le \pi/2$.
+I will use this range.
+
+Okay, generating response.
+The response should be in TeX format as requested.
+I will output the solution inside the `解答` block if applicable, but just standard LaTeX is fine.
+I will ensure the math is clear.
+
+One note: The problem asks to express $S(t)$ in terms of $t$.
+I will write $S(t) = 2\pi \sin^2 t$.
+Then calculate $V$.
+
+Final check on the question text: "内部含む直円錐 C". "内部含む" usually means solid cone.
+"C'の体積 V".
+Everything matches.
+
+Wait, is there a possibility that the cross-section is an annulus?
+No, $P(t)$ is on the axis of revolution $\ell$.
+The axis is inside the solid $C'$?
+Since $\ell$ is a generator of the cone $C$, and $C'$ is the rotation of $C$ around $\ell$, the axis $\ell$ lies on the boundary of $C'$.
+So the cross section is a disk (radius $>0$ for $t \in (0, \pi/2)$).
+So $S(t) = \pi R(t)^2$ is correct.
+
+I will proceed.
+
+One detail to check: Is $S(t)$ simply $\pi r^2$? Yes.
+Is the radius $R(t)$ simply $\sqrt{2} \sin t$? Yes.
+Is the integral correct? Yes.
+
+Okay. I will write the solution now.
+I will use the `enumerate` environment as requested in the prompt for structure, but the output should be the full solution text.
+The prompt says "解答はTeX形式で出力せよ". I will just output the LaTeX content.
+I will include the steps (1) and (2).
+
+Wait, one more check on the distance calculation.
+$D^2 = (x-\cos t)^2 + y^2 + (z-(1-\cos t))^2$.
+Plane $H$: $z = x + 1 - 2\cos t$.
+$z - (1-\cos t) = x + 1 - 2\cos t - 1 + \cos t = x - \cos t$.
+So $(z - (1-\cos t))^2 = (x-\cos t)^2$.
+So $D^2 = 2(x-\cos t)^2 + y^2$.
+On the base $z=0$, the point is $(x,y,0)$ with $x^2+y^2 \le 1$ and on plane $H$ ($x=2\cos t - 1$).
+So $D^2 = 2(2\cos t - 1 - \cos t)^2 + y^2 = 2(\cos t - 1)^2 + y^2$.
+Maximize over $y^2 \le 1 - (2\cos t - 1)^2$.
+Max $D^2 = 2(1-\cos t)^2 + 1 - (2\cos t - 1)^2$.
+$= 2(1 - 2\cos t + \cos^2 t) + 1 - (4\cos^2 t - 4\cos t + 1)$
+$= 2 - 4\cos t + 2\cos^2 t + 1 - 4\cos^2 t + 4\cos t - 1$
+$= 2 - 2\cos^2 t = 2\sin^2 t$.
+This confirms the radius squared is $2\sin^2 t$.
+The calculation is solid.
+
+I will write the solution now.
+</think>
+
+\begin{enumerate}
+    \item[$(1)$]
+    直円錐$C$は，$z=0$および$z=1-\sqrt{x^2+y^2}$で囲まれた立体である．
+    回転軸$\ell$は$y=0, z=1-x$（$0\leqq x\leqq 1$）であり，$P(t)=(\cos t, 0, 1-\cos t)$で表される．
+    平面$H$は$\ell$に垂直で点$P(t)$を通るため，その法線ベクトルは$\vec{n}=(-\sin t, 0, \sin t)$（$t=\pi/2$を除く）と取れる．
+    平面$H$の方程式は
+    $$-\sin t(x-\cos t) + \sin t(z-(1-\cos t)) = 0 \implies z-x = 1-2\cos t$$
+    である．
+    立体$C'$は$C$を$\ell$の周りに回転してできるため，平面$H$と$C'$の共通部分$S(t)$は，$\ell$（中心$P(t)$）を軸とする円板である．
+    この円板の半径$R(t)$は，平面$H$上の$C$の境界上にある点から$P(t)$までの距離の最大値に等しい．
+    $C$の境界は側面$z=1-\sqrt{x^2+y^2}$および底面$z=0$である．
+    平面$H$と底面$z=0$との交線は$x=1-2\cos t$であり，また$C$の底面円$D_0: x^2+y^2\leqq 1$と交わることから，交点$M$の座標は$x=1-2\cos t, y^2=1-(1-2\cos t)^2$（ただし$x=2\cos t-1$と一致）と見なせる．
+    点$P(t)$と底面上の点$(x,y,0)$との距離の2乗$D^2$は
+    \begin{align*}
+    D^2 &= (x-\cos t)^2 + y^2 + (0-(1-\cos t))^2 \\
+    &= (x-\cos t)^2 + y^2 + (1-\cos t)^2
+    \end{align*}
+    であり，$x=2\cos t-1$と固定したとき，$y^2$を最大にとることで距離を最大とする．
+    このとき，$R(t)^2$は
+    \begin{align*}
+    R(t)^2 &= (2\cos t - 1 - \cos t)^2 + 1 - (2\cos t - 1)^2 + (1-\cos t)^2 \\
+    &= (\cos t - 1)^2 + 1 - (4\cos^2 t - 4\cos t + 1) + (1 - 2\cos t + \cos^2 t) \\
+    &= 1 - 2\cos t + \cos^2 t + 1 - 4\cos^2 t + 4\cos t - 1 + 1 - 2\cos t + \cos^2 t \\
+    &= 2 - 2\cos^2 t = 2\sin^2 t
+    \end{align*}
+    となる．（側面との境界点でも同様の値をとるため，これが最大距離である）
+    よって，断面面積$S(t)$は
+    $$S(t) = \pi R(t)^2 = 2\pi \sin^2 t$$
+    と表される．
+
+    \item[$(2)$]
+    体積$V$は，断面面積$S(t)$を回転軸$\ell$に沿って積分することで求められる．
+    直線$\ell$上の弧長要素$ds$は，$P(t)$の位置ベクトルを$P(t)$とすると
+    $$ds = \sqrt{dx^2 + dy^2 + dz^2} = \sqrt{(-\sin t dt)^2 + 0 + (\sin t dt)^2} = \sqrt{2}\sin t \, dt$$
+    となる．
+    積分範囲は$0\leqq t \leqq \dfrac{\pi}{2}$であり，体積は
+    \begin{align*}
+    V &= \int_{0}^{\pi/2} S(t) \, ds \\
+    &= \int_{0}^{\pi/2} 2\pi \sin^2 t \cdot (\sqrt{2} \sin t) \, dt \\
+    &= 2\sqrt{2}\pi \int_{0}^{\pi/2} \sin^3 t \, dt
+    \end{align*}
+    である．
+    積分$\int_{0}^{\pi/2} \sin^3 t \, dt$を計算すると，
+    $$\int_{0}^{\pi/2} (1-\cos^2 t)\sin t \, dt = \int_{0}^{1} (1-u^2) \, du = \left[u - \frac{u^3}{3}\right]_0^1 = \frac{2}{3}$$
+    となる．
+    よって，体積$V$は
+    $$V = 2\sqrt{2}\pi \cdot \frac{2}{3} = \frac{4\sqrt{2}}{3}\pi$$
+    である．
+\end{enumerate}
+
+\begin{center}
+$$V = \dfrac{4\sqrt{2}}{3}\pi$$
+\end{center}

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>シンプル・テトリス</title>
+    <style>
+        body {
+            background-color: #202028;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui {
+            margin-top: 10px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+        }
+        button:hover { background: #45a049; }
+        .score-board { font-size: 20px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="score-board">SCORE: <span id="score">0</span></div>
+    <canvas width="300" height="600" id="game"></canvas>
+    <div id="ui">
+        <p>操作方法：← → で移動、↓ で高速落下、↑ で回転</p>
+        <p style="font-size:12px; color:#aaa;">(BGM は自動再生されます)</p>
+        <button id="start-btn">スタート (BGM 再生)</button>
+    </div>
+
+    <script>
+        // --- 1. 基本設定 ---
+        const canvas = document.getElementById('game');
+        const context = canvas.getContext('2d');
+        const grid = 30; // 1 マスのサイズ
+        const tetrominoSequence = [];
+
+        // テトロミノの形状
+        // I, J, L, O, S, T, Z
+        const tetrominos = {
+            'I': [
+                [0,0,0,0],
+                [1,1,1,1],
+                [0,0,0,0],
+                [0,0,0,0]
+            ],
+            'J': [
+                [1,0,0],
+                [1,1,1],
+                [0,0,0],
+                [0,0,0]
+            ],
+            'L': [
+                [0,0,1],
+                [1,1,1],
+                [0,0,0],
+                [0,0,0]
+            ],
+            'O': [
+                [1,1],
+                [1,1],
+            ],
+            'S': [
+                [0,1,1],
+                [1,1,0],
+                [0,0,0],
+            ],
+            'Z': [
+                [1,1,0],
+                [0,1,1],
+                [0,0,0],
+            ],
+            'T': [
+                [0,1,0],
+                [1,1,1],
+                [0,0,0],
+                [0,0,0]
+            ]
+        };
+
+        const colors = {
+            'I': 'cyan',
+            'O': 'yellow',
+            'J': 'blue',
+            'L': 'orange',
+            'S': 'green',
+            'Z': 'red',
+            'T': 'purple'
+        };
+
+        let count = 0;
+        let tetromino = getNextTetromino();
+        let rAF = null;
+        let gameOver = false;
+        let score = 0;
+        let board = [];
+
+        // 盤面初期化
+        function initBoard() {
+            board = [];
+            for (let x = 0; x < 10; x++) {
+                board[x] = [];
+                for (let y = 0; y < 20; y++) {
+                    board[x][y] = 0;
+                }
+            }
+        }
+        initBoard();
+
+        // --- 2. 不協和音にならない BGM 設定 (Web Audio API) ---
+        // テトリスの主題曲風の、シンプルで繰り返しの旋律をコードで生成
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isPlaying = false;
+        let noteIndex = 0;
+
+        // テトリスのメロディ (周波数 [Hz] の配列)
+        // Do=261, Re=293, Mi=329, Fa=349, Sol=392, La=440, Ti=493
+        const melody = [
+            261, 293, 293, 261, // I
+            329, 329, 392, 349, 392, 261, 261, 392, 329, 261, // J L O S T ...
+            493, 493, 329, 293, 293, 493, 329, 392, 329, 293, 293, // Z I ...
+            329, 329, 261, 293, 261, 261, 392, 329, 293, 261, 261, // T J L ...
+            329, 329, 392, 349, 392, 261, 261, 392, 329, 261, // ...
+            493, 493, 329, 293, 293, 493, 329, 392, 329, 293, // ...
+        ];
+
+        function playTone(freq, time) {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.frequency.value = freq;
+            // 音を丸くする (三角波)
+            osc.type = 'sine'; 
+            
+            // フェードインで不協和音を避ける
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(0.1, time + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+
+            osc.start(time);
+            osc.stop(time + 0.6);
+        }
+
+        function playBGM() {
+            if (!isPlaying) return;
+            
+            const now = audioCtx.currentTime;
+            // 1 つの音符の長さ (秒)
+            const duration = 0.3; 
+            
+            // メロディをループさせて再生
+            playTone(melody[noteIndex % melody.length], now);
+            
+            // 次の音符のタイミング
+            setTimeout(() => {
+                noteIndex++;
+                playBGM();
+            }, duration * 1000);
+        }
+
+        // --- 3. ゲームロジック ---
+        
+        function randomInt(1, min) { return Math.floor(Math.random() * (min - 1) + 1); }
+        function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function getNextTetromino() {
+            if (tetrominoSequence.length === 0) {
+                tetrominoSequence.push('I', 'J', 'L', 'O', 'S', 'T', 'Z');
+            }
+            const type = tetrominoSequence.pop();
+            const tetrominoMatrix = tetrominos[type];
+            const col = randomInt(0, 3);
+            const row = -1;
+            return {
+                type: type,
+                row: row,
+                col: col,
+                matrix: tetrominoMatrix,
+                color: colors[type]
+            }
+        }
+
+        function rotate(matrix) {
+            const N = matrix.length - 1;
+            const result = matrix.map((row, i) =>
+                matrix.map(col => col[N - 1 - i])
+            );
+            return result;
+        }
+
+        function placeTetromino() {
+            for (let y = 0; y < tetromino.matrix.length; y++) {
+                for (let x = 0; x < tetromino.matrix[y].length; x++) {
+                    if (tetromino.matrix[y][x]) {
+                        // 衝突判定
+                        if (
+                            board[tetromino.col + x] &&
+                            board[tetromino.col + x][tetromino.row + y]
+                        ) {
+                            gameOver = true;
+                            cancelAnimationFrame(rAF);
+                            document.getElementById('start-btn').innerText = "リスタート";
+                            return;
+                        }
+                        board[tetromino.col + x][tetromino.row + y] = {
+                            color: tetromino.color,
+                            type: tetromino.type,
+                        }
+                    }
+                }
+            }
+            tetromino = getNextTetromino();
+        }
+
+        // --- 4. 描画とループ ---
+
+        function draw() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 盤面の描画
+            for (let x = 0; x < 10; x++) {
+                for (let y = 0; y < 20; y++) {
+                    if (board[x][y]) {
+                        context.fillStyle = board[x][y].color;
+                        context.fillRect(x * grid, y * grid, grid, grid);
+                        context.strokeStyle = '#000';
+                        context.strokeRect(x * grid, y * grid, grid, grid);
+                    }
+                }
+            }
+
+            // 現在のブロックの描画
+            if (tetromino) {
+                context.fillStyle = tetromino.color;
+                tetromino.matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value) {
+                            context.fillRect((tetromino.col + x) * grid, (tetromino.row + y) * grid, grid - 1, grid - 1);
+                        }
+                    });
+                });
+            }
+
+            // ゲームオーバー表示
+            if (gameOver) {
+                context.fillStyle = 'rgba(0,0,0,0.75)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.fillStyle = 'white';
+                context.font = '36px Arial';
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            tetromino.row++;
+            if (tetromino.row > 19) {
+                score += 100;
+                document.getElementById('score').innerText = score;
+                // リセット
+                for (let x = 0; x < 10; x++) {
+                    for (let y = 0; y < 20; y++) {
+                        board[x][y] = 0;
+                    }
+                }
+                tetromino = getNextTetromino();
+                tetromino.row = 1; // 上に戻る（衝突処理があるので 1 のままといい）
+            }
+            draw();
+        }
+
+        function loop() {
+            if (!gameOver) {
+                // BGM のループ
+                if (count % 3 === 0) playBGM();
+                
+                update();
+                rAF = requestAnimationFrame(loop);
+            }
+            count++;
+        }
+
+        // キー入力
+        document.addEventListener('keydown', event => {
+            // キーボードで演奏できるようにする場合はここを解除するが、今回は自動再生のためロック
+            // audioCtx.resume(); 
+
+            if (gameOver) return;
+
+            // 左・右
+            if (event.keyCode == 37) { // Left
+                tetromino.col--;
+                if (tetromino.col < 0) tetromino.col = 0;
+            } else if (event.keyCode == 39) { // Right
+                tetromino.col++;
+                if (tetromino.col > 9 - tetromino.matrix[0].length) tetromino.col = 9 - tetromino.matrix[0].length;
+            } else if (event.keyCode == 40) { // Down
+                tetromino.row++;
+                if (tetromino.row > 19) {
+                    score += 100;
+                    document.getElementById('score').innerText = score;
+                    for (let x = 0; x < 10; x++) {
+                        for (let y = 0; y < 20; y++) {
+                            board[x][y] = 0;
+                        }
+                    }
+                    tetromino = getNextTetromino();
+                    tetromino.row = 1;
+                }
+            } else if (event.keyCode == 38) { // Up (Rotate)
+                const matrix = rotate(tetromino.matrix);
+                const tempCol = tetromino.col;
+                tetromino.col -= 2; // 左移動分
+                for (let y = 0; y < tetromino.matrix.length; y++) {
+                    tetromino.matrix[y] = matrix[y];
+                }
+                tetromino.col += 2; // 右移動分
+            }
+        });
+
+        // スターターボタン
+        document.getElementById('start-btn').addEventListener('click', function() {
+            if (isPlaying) return; // 再生済みなら何もしない
+            
+            // AudioContext はユーザー操作でないと再生できないため初期化
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            initBoard();
+            score = 0;
+            document.getElementById('score').innerText = score;
+            tetromino = getNextTetromino();
+            gameOver = false;
+            count = 0;
+            this.innerText = "Running...";
+            isPlaying = true;
+            loop();
+        });
+
+        // 自動で BGM を準備しておき、ボタンで開始
+        // (初回クリックで AudioContext 生成のため、ここでは何もせず、ボタンがスタートになる)
+        console.log("準備完了。'スタート'ボタンで BGM 再生・ゲーム開始。");
+
+    </script>
+</body>
+</html>

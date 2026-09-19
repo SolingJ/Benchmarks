@@ -1,0 +1,672 @@
+# テトリス with BGM 🎮🎵
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Tetris with BGM</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+  .game-wrapper {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  canvas#gameCanvas {
+    border: 3px solid #334;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(100, 100, 255, 0.15), inset 0 0 60px rgba(0,0,0,0.3);
+    background: #111;
+  }
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 160px;
+  }
+  .panel-box {
+    background: rgba(255,255,255,0.04);
+    border: 2px solid #334;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .panel-box h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #778;
+    margin-bottom: 8px;
+  }
+  .panel-box .value {
+    font-size: 28px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #6cf, #c6f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  canvas#nextCanvas {
+    display: block;
+    margin: 8px auto 0;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+  }
+  .controls {
+    font-size: 11px;
+    color: #556;
+    line-height: 1.8;
+  }
+  .controls kbd {
+    background: #223;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #9af;
+    border: 1px solid #445;
+  }
+  .bgm-toggle {
+    background: linear-gradient(135deg, #6cf, #c6f);
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .bgm-toggle:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(100,200,255,0.3);
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+  }
+  #overlay.hidden { display: none; }
+  .overlay-box {
+    text-align: center;
+  }
+  .overlay-box h1 {
+    font-size: 48px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #6cf, #c6f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .overlay-box p { color: #99a; margin-bottom: 24px; font-size: 16px; }
+  .overlay-box button {
+    background: linear-gradient(135deg, #6cf, #c6f);
+    border: none;
+    color: #fff;
+    padding: 14px 40px;
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: transform 0.15s;
+  }
+  .overlay-box button:hover { transform: scale(1.08); }
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="overlay-box">
+    <h1>TETRIS</h1>
+    <p>BGM付きテトリスゲーム</p>
+    <button id="startBtn">▶ START</button>
+  </div>
+</div>
+
+<div class="game-wrapper">
+  <canvas id="gameCanvas" width="300" height="600"></canvas>
+  <div class="side-panel">
+    <div class="panel-box">
+      <h3>Score</h3>
+      <div class="value" id="score">0</div>
+    </div>
+    <div class="panel-box">
+      <h3>Level</h3>
+      <div class="value" id="level">1</div>
+    </div>
+    <div class="panel-box">
+      <h3>Lines</h3>
+      <div class="value" id="lines">0</div>
+    </div>
+    <div class="panel-box">
+      <h3>Next</h3>
+      <canvas id="nextCanvas" width="120" height="120"></canvas>
+    </div>
+    <button class="bgm-toggle" id="bgmBtn">🎵 BGM: ON</button>
+    <div class="panel-box controls">
+      <kbd>←</kbd><kbd>→</kbd> 移動<br>
+      <kbd>↑</kbd> 回転<br>
+      <kbd>↓</kbd> 高速落下<br>
+      <kbd>Space</kbd> ハードドロップ<br>
+      <kbd>P</kbd> ポーズ
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== CONSTANTS ====================
+const COLS = 10, ROWS = 20, BLOCK = 30;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('nextCanvas');
+const nctx = nextCanvas.getContext('2d');
+
+// ==================== TETROMINO SHAPES & COLORS ====================
+const PIECES = {
+  I: { shape: [[0,0],[1,0],[2,0],[3,0]], color: '#0ef' },
+  O: { shape: [[0,0],[1,0],[0,1],[1,1]], color: '#ee4' },
+  T: { shape: [[0,0],[1,0],[2,0],[1,1]], color: '#a4f' },
+  S: { shape: [[1,0],[2,0],[0,1],[1,1]], color: '#4e4' },
+  Z: { shape: [[0,0],[1,0],[1,1],[2,1]], color: '#e44' },
+  J: { shape: [[0,0],[0,1],[1,1],[2,1]], color: '#46f' },
+  L: { shape: [[2,0],[0,1],[1,1],[2,1]], color: '#f84' }
+};
+const PIECE_NAMES = Object.keys(PIECES);
+
+// ==================== GAME STATE ====================
+let board = [];
+let currentPiece = null;
+let nextPiece = null;
+let score = 0, level = 1, lines = 0;
+let gameOver = false, paused = false, running = false;
+let dropInterval = 800, lastDrop = 0;
+let bag = [];
+
+// ==================== BGM ENGINE (Web Audio API) ====================
+// C Major pentatonic + diatonic — no dissonance!
+const NOTE_FREQS = {
+  'C3':130.81,'D3':146.83,'E3':164.81,'G3':196.00,'A3':220.00,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00
+};
+
+// Melody: C major pentatonic — always consonant
+const MELODY = [
+  'C4','E4','G4','A4','G4','E4',
+  'D4','F4','A4','C5','A4','F4',
+  'E4','G4','B4','C5','B4','G4',
+  'D4','E4','G4','A4','G4','E4',
+  'C4','D4','E4','G4','A4','G4',
+  'F4','E4','D4','C4','D4','E4',
+  'G4','A4','G4','E4','D4','C4',
+  'E5','D5','C5','A4','G4','E4'
+];
+
+// Bass line: root notes, slow
+const BASS = [
+  'C3','C3','G3','G3','A3','A3','F3','F3',
+  'C3','C3','G3','G3','D3','D3','A3','A3'
+];
+
+let audioCtx = null, bgmEnabled = true;
+let melodyIdx = 0, bassIdx = 0;
+let nextNoteTime = 0;
+const BPM = 140;
+const BEAT_DUR = 60 / BPM; // ~0.428s per beat
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playNote(freq, startTime, duration, type, gainVal, detune = 0) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+
+  osc.type = type;
+  osc.frequency.value = freq;
+  if (detune) osc.detune.value = detune;
+
+  filter.type = 'lowpass';
+  filter.frequency.value = type === 'sawtooth' ? 800 : 2000;
+  filter.Q.value = 1;
+
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(gainVal, startTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.95);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+function scheduleBGM() {
+  if (!audioCtx || !bgmEnabled) return;
+
+  while (nextNoteTime < audioCtx.currentTime + 0.2) {
+    const t = nextNoteTime;
+    const beatInBar = melodyIdx % MELODY.length;
+    const bassBeat = Math.floor(beatInBar / 2) % BASS.length;
+
+    // Melody (square-ish lead, soft)
+    playNote(NOTE_FREQS[MELODY[beatInBar]], t, BEAT_DUR * 0.85, 'square', 0.06);
+    // Harmony (fifth above, very quiet)
+    const fifthIdx = beatInBar + 2;
+    if (fifthIdx < MELODY.length && Math.random() > 0.3) {
+      playNote(NOTE_FREQS[MELODY[fifthIdx]] * 1.5, t, BEAT_DUR * 0.6, 'sine', 0.02);
+    }
+
+    // Bass (triangle, warm)
+    if (beatInBar % 2 === 0) {
+      playNote(NOTE_FREQS[BASS[bassBeat]], t, BEAT_DUR * 1.8, 'triangle', 0.1);
+    }
+
+    // Hi-hat on every beat (noise-like via high freq sine)
+    if (beatInBar % 2 === 0) {
+      playNote(8000 + Math.random() * 4000, t, 0.05, 'square', 0.015);
+    }
+
+    // Kick on beats 0 and 2 of each bar (every 4 beats)
+    if (beatInBar % 4 === 0) {
+      const kick = audioCtx.createOscillator();
+      const kg = audioCtx.createGain();
+      kick.frequency.setValueAtTime(150, t);
+      kick.frequency.exponentialRampToValueAtTime(30, t + 0.12);
+      kg.gain.setValueAtTime(0.18, t);
+      kg.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      kick.connect(kg);
+      kg.connect(audioCtx.destination);
+      kick.start(t);
+      kick.stop(t + 0.15);
+    }
+
+    melodyIdx++;
+    nextNoteTime += BEAT_DUR;
+  }
+}
+
+// ==================== SOUND EFFECTS ====================
+function playLineClear(count) {
+  if (!audioCtx || !bgmEnabled) return;
+  const t = audioCtx.currentTime;
+  for (let i = 0; i < count; i++) {
+    playNote(523.25 * (i + 1), t + i * 0.08, 0.3, 'sine', 0.1);
+  }
+}
+
+function playGameOver() {
+  if (!audioCtx || !bgmEnabled) return;
+  const t = audioCtx.currentTime;
+  ['C4','A3','F3','D3'].forEach((n, i) => {
+    playNote(NOTE_FREQS[n], t + i * 0.25, 0.4, 'triangle', 0.1);
+  });
+}
+
+// ==================== BOARD HELPERS ====================
+function createBoard() {
+  return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+}
+
+function shuffleBag() {
+  const arr = [...PIECE_NAMES];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function getNextFromBag() {
+  if (bag.length === 0) bag = shuffleBag();
+  return bag.pop();
+}
+
+// ==================== PIECE MANAGEMENT ====================
+function createPiece(name) {
+  const def = PIECES[name];
+  // Center horizontally
+  const shape = def.shape.map(([x, y]) => [x + 3, y]);
+  return { name, shape, color: def.color, x: 0, y: 0 };
+}
+
+function spawnPiece() {
+  if (!nextPiece) nextPiece = createPiece(getNextFromBag());
+  currentPiece = nextPiece;
+  nextPiece = createPiece(getNextFromBag());
+  // Center the piece
+  const minX = Math.min(...currentPiece.shape.map(s => s[0]));
+  const maxX = Math.max(...currentPiece.shape.map(s => s[0]));
+  const w = maxX - minX + 1;
+  currentPiece.x = Math.floor((COLS - w) / 2) - minX;
+
+  // Check game over
+  if (collides(currentPiece, 0, 0)) {
+    gameOver = true;
+    running = false;
+    playGameOver();
+    showOverlay('GAME OVER', `Score: ${score}`, 'RETRY');
+  }
+}
+
+function collides(piece, dx, dy) {
+  for (const [bx, by] of piece.shape) {
+    const nx = piece.x + bx + dx;
+    const ny = piece.y + by + dy;
+    if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+    if (ny >= 0 && board[ny][nx]) return true;
+  }
+  return false;
+}
+
+function lockPiece() {
+  for (const [bx, by] of currentPiece.shape) {
+    const x = currentPiece.x + bx;
+    const y = currentPiece.y + by;
+    if (y >= 0 && y < ROWS) board[y][x] = currentPiece.color;
+  }
+}
+
+function rotatePiece() {
+  // Find center of bounding box for rotation
+  const xs = currentPiece.shape.map(s => s[0]);
+  const ys = currentPiece.shape.map(s => s[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+  const rotated = currentPiece.shape.map(([x, y]) => {
+    const rx = Math.round(cx + (y - cy));
+    const ry = Math.round(cy - (x - cx));
+    return [rx, ry];
+  });
+
+  // Normalize to min coords
+  const rxs = rotated.map(s => s[0]);
+  const rys = rotated.map(s => s[1]);
+  const offX = Math.min(...rxs);
+  const offY = Math.min(...rys);
+  const newShape = rotated.map(([x, y]) => [x - offX, y - offY]);
+
+  const oldShape = currentPiece.shape;
+  currentPiece.shape = newShape;
+
+  // Wall kick attempts
+  const kicks = [0, -1, 1, -2, 2];
+  let kicked = false;
+  for (const k of kicks) {
+    if (!collides(currentPiece, k, 0)) {
+      currentPiece.x += k;
+      kicked = true;
+      break;
+    }
+  }
+  if (!kicked) {
+    // Try shifting up
+    if (!collides(currentPiece, 0, -1)) {
+      currentPiece.y -= 1;
+    } else {
+      currentPiece.shape = oldShape; // Revert
+    }
+  }
+}
+
+function movePiece(dx, dy) {
+  if (!collides(currentPiece, dx, dy)) {
+    currentPiece.x += dx;
+    currentPiece.y += dy;
+    return true;
+  }
+  return false;
+}
+
+function hardDrop() {
+  let dropped = 0;
+  while (movePiece(0, 1)) dropped++;
+  score += dropped * 2;
+  lockPiece();
+  clearLines();
+  spawnPiece();
+}
+
+// ==================== LINE CLEAR ====================
+function clearLines() {
+  let cleared = [];
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r].every(c => c !== null)) {
+      cleared.push(r);
+    }
+  }
+
+  if (cleared.length > 0) {
+    // Remove lines
+    for (const r of cleared.sort((a, b) => a - b)) {
+      board.splice(r, 1);
+      board.unshift(Array(COLS).fill(null));
+    }
+
+    const count = cleared.length;
+    const pts = [0, 100, 300, 500, 800];
+    score += (pts[count] || 800) * level;
+    lines += count;
+    level = Math.floor(lines / 10) + 1;
+    dropInterval = Math.max(100, 800 - (level - 1) * 70);
+
+    playLineClear(count);
+    updateUI();
+  }
+}
+
+// ==================== RENDERING ====================
+function drawBlock(context, x, y, color, size = BLOCK) {
+  const pad = 1;
+  context.fillStyle = color;
+  context.fillRect(x * size + pad, y * size + pad, size - pad * 2, size - pad * 2);
+
+  // Highlight
+  context.fillStyle = 'rgba(255,255,255,0.18)';
+  context.fillRect(x * size + pad, y * size + pad, size - pad * 2, 4);
+  context.fillRect(x * size + pad, y * size + pad, 4, size - pad * 2);
+
+  // Shadow
+  context.fillStyle = 'rgba(0,0,0,0.25)';
+  context.fillRect(x * size + pad, y * size + size - pad * 2 - 3, size - pad * 2, 3);
+  context.fillRect(x * size + size - pad * 2 - 3, y * size + pad, 3, size - pad * 2);
+}
+
+function getGhostY() {
+  let gy = 0;
+  while (!collides(currentPiece, 0, gy + 1)) gy++;
+  return gy;
+}
+
+function drawBoard() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.strokeRect(c * BLOCK, r * BLOCK, BLOCK, BLOCK);
+    }
+  }
+
+  // Locked blocks
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c]) drawBlock(ctx, c, r, board[r][c]);
+    }
+  }
+
+  if (!currentPiece || gameOver) return;
+
+  // Ghost piece
+  const ghostY = getGhostY();
+  for (const [bx, by] of currentPiece.shape) {
+    const gx = currentPiece.x + bx;
+    const gy = currentPiece.y + by + ghostY;
+    if (gy >= 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(gx * BLOCK + 2, gy * BLOCK + 2, BLOCK - 4, BLOCK - 4);
+    }
+  }
+
+  // Current piece
+  for (const [bx, by] of currentPiece.shape) {
+    const px = currentPiece.x + bx;
+    const py = currentPiece.y + by;
+    if (py >= 0) drawBlock(ctx, px, py, currentPiece.color);
+  }
+}
+
+function drawNext() {
+  nctx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  if (!nextPiece) return;
+
+  const xs = nextPiece.shape.map(s => s[0]);
+  const ys = nextPiece.shape.map(s => s[1]);
+  const w = Math.max(...xs) - Math.min(...xs) + 1;
+  const h = Math.max(...ys) - Math.min(...ys) + 1;
+  const sz = 24;
+  const offX = (nextCanvas.width - w * sz) / 2;
+  const offY = (nextCanvas.height - h * sz) / 2;
+
+  for (const [bx, by] of nextPiece.shape) {
+    const px = offX + bx * sz;
+    const py = offY + by * sz;
+    nctx.fillStyle = nextPiece.color;
+    nctx.fillRect(px + 1, py + 1, sz - 2, sz - 2);
+    nctx.fillStyle = 'rgba(255,255,255,0.15)';
+    nctx.fillRect(px + 1, py + 1, sz - 2, 3);
+  }
+}
+
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('level').textContent = level;
+  document.getElementById('lines').textContent = lines;
+}
+
+// ==================== OVERLAY ====================
+function showOverlay(title, subtitle, btnText) {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('hidden');
+  overlay.querySelector('h1').textContent = title;
+  overlay.querySelector('p').textContent = subtitle;
+  overlay.querySelector('button').textContent = btnText;
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+// ==================== GAME LOOP ====================
+function gameLoop(timestamp) {
+  if (!running) return;
+
+  if (!paused && !gameOver) {
+    // Schedule BGM
+    scheduleBGM();
+
+    if (timestamp - lastDrop > dropInterval) {
+      if (!movePiece(0, 1)) {
+        lockPiece();
+        clearLines();
+        spawnPiece();
+      }
+      lastDrop = timestamp;
+    }
+  }
+
+  drawBoard();
+  drawNext();
+  updateUI();
+
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  board = createBoard();
+  score = 0; level = 1; lines = 0;
+  gameOver = false; paused = false; running = true;
+  dropInterval = 800; lastDrop = performance.now();
+  bag = []; nextPiece = null; currentPiece = null;
+  melodyIdx = 0; bassIdx = 0;
+
+  if (!audioCtx) initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  spawnPiece();
+  hideOverlay();
+  updateUI();
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== INPUT ====================
+document.addEventListener('keydown', e => {
+  if (!running || gameOver) return;
+
+  if (e.key === 'p' || e.key === 'P') {
+    paused = !paused;
+    if (paused) showOverlay('PAUSED', '', 'RESUME');
+    else hideOverlay();
+    return;
+  }
+
+  if (paused) return;
+
+  switch (e.key) {
+    case 'ArrowLeft': movePiece(-1, 0); break;
+    case 'ArrowRight': movePiece(1, 0); break;
+    case 'ArrowDown': if (movePiece(0, 1)) score += 1; lastDrop = performance.now(); break;
+    case 'ArrowUp': rotatePiece(); break;
+    case ' ': hardDrop(); e.preventDefault(); break;
+  }
+});
+
+// ==================== BUTTONS ====================
+document.getElementById('startBtn').addEventListener('click', startGame);
+
+document.getElementById('bgmBtn').addEventListener('click', () => {
+  bgmEnabled = !bgmEnabled;
+  document.getElementById('bgmBtn').textContent = bgmEnabled ? '🎵 BGM: ON' : '🔇 BGM: OFF';
+});
+
+// Initial draw
+drawBoard();
+</script>
+</body>
+</html>
+```
+
+## 🎮 機能まとめ
+
+| 項目 | 内容 |
+|------|------|
+| **操作** | ← → で移動、↑で回転、↓でソフトドロップ、Spaceでハードドロップ |
+| **BGM** | Web Audio APIで生成するシンセミュージック（Cメジャーpentatonicスケール使用） |
+| **不協和音対策** | メロディ・ハーモニーともに長調スケールのみ。5度上のハーモニーも加えるが音量を小さく設定 |
+| **7種類のテトリミノ** | I, O, T, S, Z, J, L（7-bagランダム方式） |
+| **ゴースト表示** | 落下位置が半透明で表示される |
+| **レベルシステム** | ライン消去ごとにレベルアップ＆速度上昇 |
+| **BGM ON/OFF** | ボタンで切り替え可能 |
+
+HTMLファイルとして保存してブラウザで開けば、すぐに遊べます！🎵

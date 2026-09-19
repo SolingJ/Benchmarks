@@ -1,0 +1,9 @@
+Model: Qwen3.6_35B_Q4
+Model Key: qwen3.6_35b
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 45.796
+Average TTFT: 3.816 sec

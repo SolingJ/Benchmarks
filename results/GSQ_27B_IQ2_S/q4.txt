@@ -1,0 +1,533 @@
+以下を **`tetris.html`** として保存し、ブラウザで開くだけで動きます。  
+BGMは、不協和音を避けるために **C major の安全なコード進行（I・ii・IV・V系）だけ** を自動設定します。音はルート／サード／ファイブのみを使い、低域フィルターとソフトな波形にしているため、きつくなりません。
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Tetris + Safe BGM</title>
+<style>
+  body {
+    margin: 0;
+    background: #171b23;
+    color: #f4f6fb;
+    font-family: "Segoe UI", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+
+  h1 {
+    margin: 24px 0 8px;
+    text-align: center;
+  }
+
+  .wrap {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  canvas {
+    background: #0d1117;
+    border: 2px solid #3a4150;
+    border-radius: 8px;
+  }
+
+  .side {
+    width: 280px;
+  }
+
+  button {
+    padding: 10px 16px;
+    font-size: 16px;
+    background: #2f9e44;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+
+  p {
+    margin: 8px 0;
+  }
+
+  ul {
+    padding-left: 18px;
+    line-height: 1.8;
+  }
+
+  kbd {
+    background: #2c3440;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+  }
+
+  .note {
+    color: #aeb9c5;
+    font-size: 13px;
+  }
+</head>
+<body>
+<h1>Simple Tetris + Safe BGM</h1>
+
+<div class="wrap">
+  <canvas id="board" width="300" height="600"></canvas>
+
+  <div class="side">
+    <button id="startBtn">▶ Start / Restart (BGM ON)</button>
+
+    <p id="score">スコア：0</p>
+    <p id="status">未開始</p>
+
+    <ul>
+      <li><kbd>←</kbd> / <kbd>→</kbd> : 移動</li>
+      <li><kbd>↑</kbd> : 回転</li>
+      <li><kbd>↓</kbd> : 一段落下</li>
+      <li><kbd>Space</kbd> : ハードドロップ</li>
+    </ul>
+
+    <p class="note">
+      BGMは自動で「不協和音になりにくい」設定にします。  
+      C major の安全なコード進行と、ルート／サード／ファイブのみに限った音を再生します。
+    </p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const COLS = 10;
+const ROWS = 20;
+const CELL = 30;
+const DROP_MS = 600;
+
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const statusEl = document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
+
+let board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+let piece = null;
+let px = 0;
+let py = 0;
+let score = 0;
+let running = false;
+let gameOver = false;
+let nextDrop = 0;
+let rafId = null;
+
+const SHAPES = [
+  { matrix: [[1, 1, 1, 1]], color: "#38bdf8" }, // I
+  { matrix: [[1, 1], [1, 1]], color: "#facc15" }, // O
+  { matrix: [[0, 1, 0], [1, 1, 1]], color: "#fb7185" }, // T
+  { matrix: [[0, 1, 1], [1, 1, 0]], color: "#4ade80" }, // S
+  { matrix: [[1, 1, 0], [0, 1, 1]], color: "#c084fc" }, // Z
+  { matrix: [[1, 0, 0], [1, 1, 1]], color: "#60a5fa" }, // J
+  { matrix: [[0, 0, 1], [1, 1, 1]], color: "#fb923c" }  // L
+];
+
+function updateScore() {
+  scoreEl.textContent = "スコア：" + score;
+}
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+function isValid(p, x, y) {
+  for (let r = 0; r < p.matrix.length; r++) {
+    for (let c = 0; c < p.matrix[0].length; c++) {
+      if (!p.matrix[r][c]) continue;
+
+      const rr = y + r;
+      const cc = x + c;
+
+      if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) return false;
+      if (board[rr][cc] !== null) return false;
+    }
+  }
+  return true;
+}
+
+function rotateMatrix(m) {
+  const rows = m.length;
+  const cols = m[0].length;
+  const res = [];
+
+  for (let r = 0; r < cols; r++) {
+    res.push([]);
+    for (let c = 0; c < rows; c++) {
+      res[r][c] = m[rows - 1 - c][r];
+    }
+  }
+
+  return res;
+}
+
+function spawnPiece() {
+  const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+  piece = {
+    matrix: shape.matrix.map(row => row.slice()),
+    color: shape.color
+  };
+
+  px = Math.floor((COLS - piece.matrix[0].length) / 2);
+  py = 0;
+
+  if (!isValid(piece, px, py)) {
+    piece = null;
+    gameOver = true;
+    running = false;
+    setStatus("ゲームオーバー");
+    stopMusic();
+    cancelAnimationFrame(rafId);
+    return false;
+  }
+
+  nextDrop = performance.now() + DROP_MS;
+  return true;
+}
+
+function resetBoard() {
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  score = 0;
+  updateScore();
+  spawnPiece();
+}
+
+function move(dx, dy) {
+  if (!piece) return false;
+  if (isValid(piece, px + dx, py + dy)) {
+    px += dx;
+    py += dy;
+    return true;
+  }
+  return false;
+}
+
+function rotatePiece() {
+  if (!piece) return;
+
+  const rotated = rotateMatrix(piece.matrix);
+  const kicks = [0, -1, 1, -2, 2];
+
+  for (const dx of kicks) {
+    if (isValid({ matrix: rotated, color: piece.color }, px + dx, py)) {
+      piece = { matrix: rotated, color: piece.color };
+      px += dx;
+      return;
+    }
+  }
+}
+
+function lockPiece() {
+  if (!piece) return;
+
+  for (let r = 0; r < piece.matrix.length; r++) {
+    for (let c = 0; c < piece.matrix[0].length; c++) {
+      if (piece.matrix[r][c]) {
+        board[py + r][px + c] = piece.color;
+      }
+    }
+  }
+
+  piece = null;
+  clearLines();
+  spawnPiece();
+}
+
+function clearLines() {
+  const remaining = [];
+  let cleared = 0;
+
+  for (let r = 0; r < ROWS; r++) {
+    if (board[r].every(v => v !== null)) {
+      cleared++;
+    } else {
+      remaining.push(board[r]);
+    }
+  }
+
+  board = Array.from({ length: cleared }, () => Array(COLS).fill(null)).concat(remaining);
+
+  const scoreTable = [0, 100, 300, 500, 800];
+  score += scoreTable[Math.min(cleared, 4)];
+  updateScore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== null) {
+        ctx.fillStyle = board[r][c];
+        ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  }
+
+  // 网格线
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.10)";
+  ctx.lineWidth = 1;
+
+  for (let x = 0; x <= COLS; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x * CELL + 0.5, 0);
+    ctx.lineTo(x * CELL + 0.5, canvas.height);
+    ctx.stroke();
+  }
+
+  for (let y = 0; y <= ROWS; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y * CELL + 0.5);
+    ctx.lineTo(canvas.width, y * CELL + 0.5);
+    ctx.stroke();
+  }
+
+  if (piece) {
+    for (let r = 0; r < piece.matrix.length; r++) {
+      for (let c = 0; c < piece.matrix[0].length; c++) {
+        if (!piece.matrix[r][c]) continue;
+        ctx.fillStyle = piece.color;
+        ctx.fillRect((px + c) * CELL + 1, (py + r) * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  }
+
+  if (gameOver) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 32px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2);
+  }
+}
+
+function loop(now) {
+  if (!running) return;
+
+  if (now >= nextDrop) {
+    if (move(0, 1)) {
+      nextDrop = now + DROP_MS;
+    } else {
+      lockPiece();
+    }
+  }
+
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!running) return;
+
+  const k = e.key;
+
+  if (["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " "].includes(k)) {
+    e.preventDefault();
+  }
+
+  switch (k) {
+    case "ArrowLeft":
+      move(-1, 0);
+      break;
+
+    case "ArrowRight":
+      move(1, 0);
+      break;
+
+    case "ArrowUp":
+      rotatePiece();
+      break;
+
+    case "ArrowDown":
+      if (move(0, 1)) {
+        nextDrop = performance.now() + DROP_MS;
+      } else {
+        lockPiece();
+      }
+      break;
+
+    case " ":
+      while (move(0, 1)) {}
+      lockPiece();
+      break;
+  }
+});
+
+/* ---------------------------
+   BGM: Safe / non-dissonant
+--------------------------- */
+
+let audioCtx = null;
+let masterGain = null;
+let musicTimer = null;
+let nextNoteTime = 0;
+let stepIndex = 0;
+
+const STEP_SECONDS = 0.25; // 160 BPM の 8分音符感覚
+const CHORD_STEPS = 4;     // コードは 4 ステップごとに変える
+const LOOKAHEAD = 0.25;    // WebAudio スケジュールの予量
+
+// C major の安全なコード。
+// すべてルート / サード / ファイブのみで鳴らします。
+const NOTE_CHORDS = [
+  { name: "C", bassLow: 130.81, bassFifth: 196.00, triad: [261.63, 329.63, 392.00] },   // C major
+  { name: "Am", bassLow: 110.00, bassFifth: 164.81, triad: [220.00, 261.63, 329.63] }, // A minor
+  { name: "F", bassLow: 87.31, bassFifth: 130.81, triad: [174.61, 220.00, 261.63] },   // F major
+  { name: "G", bassLow: 98.00, bassFifth: 146.83, triad: [196.00, 246.94, 293.66] }    // G major
+];
+
+let progression = [];
+let melodyPattern = [1, 2]; // メロディは各コードのみの音を使う
+
+async function initAudio() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+
+    audioCtx = new AC();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.22; // やわらかめ
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 3000;
+
+    masterGain.connect(filter);
+    filter.connect(audioCtx.destination);
+  }
+
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
+
+  return true;
+}
+
+function playTone(freq, when, duration, wave = "sine", volume = 0.14) {
+  if (!audioCtx) return;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = wave;
+  osc.frequency.setValueAtTime(freq, when);
+
+  gain.gain.setValueAtTime(0, when);
+  gain.gain.linearRampToValueAtTime(volume, when + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(when);
+  osc.stop(when + duration + 0.05);
+}
+
+function scheduleStep(step, when) {
+  const chordIndex = step % progression.length;
+  const chord = progression[chordIndex];
+  const local = step % CHORD_STEPS;
+
+  // ベース: ルートとファイブのみ
+  if (local === 0) {
+    playTone(chord.bassLow, when, 0.22, "triangle", 0.18);
+  } else if (local === 2) {
+    playTone(chord.bassFifth, when, 0.18, "triangle", 0.13);
+  }
+
+  // メロディ: そのコードの音のみ（ルート/サード/ファイブ）
+  if (local === 1) {
+    playTone(chord.triad[melodyPattern[0]], when, 0.18, "sine", 0.12);
+  } else if (local === 3) {
+    playTone(chord.triad[melodyPattern[1]], when, 0.16, "sine", 0.10);
+  }
+}
+
+function startMusic() {
+  if (!audioCtx) return;
+
+  // 自動で安全なコード進行を選ぶ
+  const pool = [
+    [0, 1, 2, 3], // C - Am - F - G
+    [2, 3, 0, 1]  // F - G - C - Am
+  ];
+
+  const order = pool[Math.floor(Math.random() * pool.length)];
+  progression = order.concat(order).map(i => NOTE_CHORDS[i]);
+
+  // メロディも、そのコードの音だけから選ぶ
+  melodyPattern = [
+    [1, 0],
+    [2, 1],
+    [0, 2],
+    [2, 0]
+  ][Math.floor(Math.random() * 4)];
+
+  nextNoteTime = audioCtx.currentTime + 0.1;
+  stepIndex = 0;
+
+  const scheduler = () => {
+    if (!audioCtx) return;
+
+    // タブが止まっていた場合の補正
+    if (nextNoteTime < audioCtx.currentTime + 0.02) {
+      nextNoteTime = audioCtx.currentTime + 0.02;
+    }
+
+    while (nextNoteTime < audioCtx.currentTime + LOOKAHEAD) {
+      scheduleStep(stepIndex, nextNoteTime);
+      stepIndex++;
+      nextNoteTime += STEP_SECONDS;
+    }
+  };
+
+  musicTimer = setInterval(scheduler, 50);
+  scheduler();
+}
+
+function stopMusic() {
+  if (musicTimer) {
+    clearInterval(musicTimer);
+    musicTimer = null;
+  }
+}
+
+startBtn.addEventListener("click", async () => {
+  try {
+    await initAudio();
+  } catch (e) {
+    // 音声が使えない場合でもゲームは動くようにする
+  }
+
+  stopMusic();
+
+  running = false;
+  gameOver = false;
+  if (rafId) cancelAnimationFrame(rafId);
+
+  resetBoard();
+
+  startMusic();
+
+  running = true;
+  setStatus("進行中");
+  nextDrop = performance.now() + DROP_MS;
+  rafId = requestAnimationFrame(loop);
+});
+
+// 初期表示
+draw();
+</script>
+</body>
+</html>
+```

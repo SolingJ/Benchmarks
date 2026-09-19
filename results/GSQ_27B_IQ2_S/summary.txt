@@ -1,0 +1,9 @@
+Model: GSQ_27B_IQ2_S
+Model Key: ista-daslab-qwen3.8-27b-gsq-rco-unsloth-mtp@iq2_s
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 24.284
+Average TTFT: 151.138 sec

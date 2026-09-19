@@ -1,0 +1,11 @@
+
+$z$軸を中心軸とする内部含む直円錐
+$$C:0\leqq z\leqq1- \sqrt{x^{2}+y^{2}}$$
+がある． この円錐を，母線$$\ell :y=0, z=1-x, 0\leqq z \leqq 1$$の周りに1回転してできる立体$C'$の体積$V$を求めたい．
+
+\begin{enumerate}[(1)]
+    \item $0\leqq t \leqq \dfrac{\pi}{2}$とする． $\ell$上の点$(\cos t, 0, 1-\cos t)$を通り$\ell$に垂直な平面$H$とを考える．$H$と$C'$の共通部分の面積$S(t)$を$t$の関数で表せ．
+    \item (1)の結果を用いて，$V$を求めよ．
+\end{enumerate}
+
+解答はTeX形式で出力せよ．

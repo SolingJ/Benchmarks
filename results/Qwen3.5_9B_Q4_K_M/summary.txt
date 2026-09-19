@@ -1,0 +1,9 @@
+Model: Qwen3.5_9B_Q4_K_M
+Model Key: qwen/qwen3.5-9b
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 50.968
+Average TTFT: 1.003 sec

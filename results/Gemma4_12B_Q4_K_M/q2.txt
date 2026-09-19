@@ -1,0 +1,58 @@
+エラーの具体的な内容（Tracebackなどのエラーメッセージ）が提示されていないため、コードを解析した結果、**「プログラムの構造上、高い確率で発生している原因」**と**「環境起因の可能性が高い原因」**の2つに分けて解説します。
+
+まず、コード内に決定的なバグ（論理ミス）が1箇所あります。
+
+### 1. 確実なプログラミングミス（論理エラー）
+
+以下の行を確認してください：
+
+```python
+if args.gpu_type != "cuda" or "mps":
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\". ")
+```
+
+**原因:**
+Pythonでは、`A or B` という式は「Aが真、またはBが真」であれば全体を真と判定します。ここで `"mps"` は空文字ではないため、常に「真（True）」と判定されます。そのため、あなたが `cuda` と入力しても、この条件式は常に `True` になり、**どんな値を入力してもエラー（ValueError）が発生する**ようになっています。
+
+**修正方法:**
+以下のように書き換える必要があります。
+
+```python
+# 正しい書き方
+if args.gpu_type not in ["cuda", "mps"]:
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\". ")
+```
+
+---
+
+### 2. 環境・パスに関する問題（実行環境に依存するエラー）
+
+もし上記の修正をしても動かない場合、以下のいずれかが原因である可能性が高いです。
+
+#### A. ライブラリの不足またはFFmpegの未インストール
+このコードは `ffmpeg` モジュールを使用しています。
+*   **Pythonパッケージ:** `pip install ffmpeg-python` が必要です。
+*   **システムツール:** PC自体に `ffmpeg` 本体がインストールされ、パス（PATH）が通っている必要があります。これが無いと、`AVSRDataLoader` を呼び出した際にエラーになります。
+
+#### B. インポートエラー（ModuleNotFoundError）
+以下のモジュールは標準ライブラリではなく、このプロジェクト固有のファイルです。
+```python
+from data.data_module import AVSRDataLoader
+from transforms import TextTransform
+from utils import save_vid_aud_txt, split_file
+```
+これらを実行するには、**スクリプトと同じディレクトリに `data/` フォルダや `transforms.py`、`utils.py` が存在している必要があります。** もし別のディレクトリから実行している場合は、パスが通っていないためエラーになります。
+
+#### C. パス指定の不一致（FileNotFoundError / ValueError）
+コードの後半で `.replace(args.data_dir, dst_vid_dir)` という処理を行っています。
+*   `--data-dir` で指定したパスと、実際のファイルパスが**完全に一致（大文字小文字やスラッシュの有無まで）していない場合**、置換が行われず、その後のファイル操作で失敗します。
+*   特に `ls /path/to/data` で表示されるパスと、引数に渡す文字列が一致しているか確認してください。
+
+---
+
+### 解決のためのステップ
+
+1.  まず、**「1」の `if args.gpu_type not in ["cuda", "mps"]:` への修正**を行ってください。これが最も可能性の高い原因です。
+2.  それでもエラーが出る場合は、表示される **エラーメッセージ（Traceback）をコピーして教えてください。**
+
+エラー内容がわかれば、「どの行で」「どんな理由で」落ちているかを特定して正確な回答ができます。

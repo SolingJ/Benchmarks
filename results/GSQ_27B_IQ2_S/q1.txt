@@ -1,0 +1,115 @@
+\[
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb}
+\begin{document}
+
+\begin{enumerate}
+\item
+頂点を \(B=(0,0,1)\) とし，軸 \(\ell\) 方向の単位ベクトルと垂直な単位ベクトルを
+\[
+e_1=\frac1{\sqrt2}(1,0,-1),\qquad 
+e_2=\frac1{\sqrt2}(1,0,1),\qquad 
+e_3=(0,1,0)
+\]
+とする．これらは直交正規基底である．この座標で，軸 \(\ell\) は
+\[
+B+a e_1 \qquad (0\le a\le \sqrt2)
+\]
+と書け，問題中の点は
+\[
+P_t=B+\sqrt2\cos t\,e_1=(\cos t,0,1-\cos t)
+\]
+である．平面 \(H_t\) は \(a=\sqrt2\cos t\) の平面である．
+
+任意の点を
+\[
+(x,y,z)=B+a e_1+u e_2+v e_3
+\]
+と書けば，
+\[
+x=\frac{a+u}{\sqrt2},\qquad y=v,\qquad z=1+\frac{u-a}{\sqrt2}
+\]
+であり，逆に
+\[
+a=\frac{x-z+1}{\sqrt2},\qquad 
+u=\frac{x+z-1}{\sqrt2},\qquad 
+v=y.
+\]
+
+円錐 \(C\) の条件
+\[
+x^2+y^2\le (1-z)^2
+\]
+をこの座標で表すと，
+\[
+\frac{(a+u)^2}{2}+v^2\le \frac{(a-u)^2}{2},
+\]
+つまり
+\[
+v^2\le -2au.
+\]
+また \(0\le z\le 1\) から
+\[
+a-\sqrt2\le u\le a.
+\]
+\(0\le a\le \sqrt2\) の範囲では，これは
+\[
+D_a:=C\cap H_t=\{(u,v):a-\sqrt2\le u\le 0,\; v^2\le -2au\}
+\qquad (a=\sqrt2\cos t)
+\]
+となる．
+
+円錐 \(C\) を \(\ell\) の周りに回転させると，\(H_t\cap C'\) は \(D_a\) を軸上の点 \(P_t\) の周りに回転させたものである．点 \((u,v)\in D_a\) からの距離の二乗は
+\[
+r^2=u^2+v^2.
+\]
+最大値を求めると，\(v^2\le -2au\) より
+\[
+r^2\le u^2-2au.
+\]
+関数 \(u^2-2au\) は区間 \([a-\sqrt2,0]\) 上で減少するため，最大は \(u=a-\sqrt2\) で取られ，
+\[
+R(a)^2=(a-\sqrt2)^2-2a(a-\sqrt2)=2-a^2.
+\]
+また，任意の \(0\le r\le R(a)\) に対して \(D_a\) に距離 \(r\) の点が存在する．たとえば
+\[
+r\le \sqrt2-a
+\quad\Longrightarrow\quad (u,v)=(-r,0),
+\]
+および
+\[
+\sqrt2-a<r\le R(a)
+\quad\Longrightarrow\quad 
+u=a-\sqrt2,\; v^2=r^2-(a-\sqrt2)^2.
+\]
+したがって，\(H_t\cap C'\) は中心 \(P_t\) ，半径 \(R(a)\) の円盤である．よって
+\[
+S(t)=\pi R(a)^2
+=\pi(2-a^2)
+=\pi\bigl(2-2\cos^2t\bigr)
+=2\pi\sin^2 t.
+\]
+
+\item
+軸 \(\ell\) に沿った長さは
+\[
+ds=\left|\frac{dP_t}{dt}\right|dt
+=\sqrt{(-\sin t)^2+(\sin t)^2}\,dt
+=\sqrt2\,\sin t\,dt.
+\]
+したがって，スライス積分より体積は
+\[
+V=\int_0^{\pi/2} S(t)\,ds
+=\int_0^{\pi/2} 2\pi\sin^2t\cdot \sqrt2\,\sin t\,dt.
+\]
+よって
+\[
+V=2\sqrt2\,\pi\int_0^{\pi/2}\sin^3t\,dt
+=2\sqrt2\,\pi\cdot \frac23
+=\boxed{\frac{4\sqrt2}{3}\pi}.
+\]
+
+\end{enumerate}
+
+\end{document}
+\]

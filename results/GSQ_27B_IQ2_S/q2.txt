@@ -1,0 +1,110 @@
+コードだけを見ると、ほぼ確実にエラーになる原因は次の部分です。
+
+```python
+if args.gpu_type != "cuda" or "mps":
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\". ")
+```
+
+これは Python の真偽評価の仕方のせいで、**常に True になる**ため、たとえ `--gpu_type cuda` を正しく指定していても例外が発生します。
+
+## なぜエラーになるのか
+
+この条件は実際には以下のように解析されます。
+
+```python
+if (args.gpu_type != "cuda") or ("mps"):
+    raise ValueError(...)
+```
+
+つまり:
+
+- `--gpu_type cuda` の場合  
+  ```python
+  args.gpu_type != "cuda"  # False
+  False or "mps"           # "mps"
+  ```
+  `"mps"` は空でない文字列なので真値です。したがって条件が True になります。
+
+- `--gpu_type mps` の場合  
+  ```python
+  args.gpu_type != "cuda"  # True
+  True or "mps"            # True
+  ```
+  これも True です。
+
+そのため、どの値を渡してもこの `if` に入ってしまうため、`ValueError` が発生します。
+
+---
+
+## 修正例
+
+本来は「`gpu_type` が `cuda` でも `mps` でもないときエラーにする」のが正しいです。したがって以下のように書くべきです。
+
+```python
+if args.gpu_type not in ("cuda", "mps"):
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\".")
+```
+
+またはこうも書けます。
+
+```python
+if args.gpu_type != "cuda" and args.gpu_type != "mps":
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\".")
+```
+
+---
+
+## 同時に確認すべき点
+
+`--gpu_type` の定義は次のようになっています。
+
+```python
+parser.add_argument(
+    "--gpu_type",
+    type=str,
+    required=True,
+    default="cuda",
+    help="GPU type, either mps or cuda. (Default: cuda)",
+)
+```
+
+ここには `required=True` と `default="cuda"` が両方あります。
+
+- `--gpu_type` をコマンドラインで指定しないと、argparse はエラーにします。
+- `required=True` があるため、`default="cuda"` は実際には使われません。
+
+デフォルト値を本当に使いたいなら、以下のようにするのが自然です。
+
+```python
+parser.add_argument(
+    "--gpu_type",
+    type=str,
+    default="cuda",
+    help="GPU type, either mps or cuda. (Default: cuda)",
+)
+```
+
+つまり `required=True` を削除します。
+
+---
+
+## まとめ
+
+最も可能性が高いエラー原因は、この一文です。
+
+```python
+if args.gpu_type != "cuda" or "mps":
+```
+
+これは構文上の誤りというより、**条件式の意味が意図と違う**ために常に例外を発生させています。
+
+修正するなら：
+
+```python
+if args.gpu_type not in ("cuda", "mps"):
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\".")
+```
+
+にしてください。
+
+もし出てくるエラーが `ValueError` ではなく、例えば `ModuleNotFoundError`, `FileNotFoundError`, `IndexError` など別のものなら、その traceback を貼ってもらえれば、さらに具体的な原因を特定できます。

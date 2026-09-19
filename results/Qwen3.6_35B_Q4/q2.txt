@@ -1,0 +1,42 @@
+エラーメッセージが記載されていませんが、このコードを実行した直後に**必ず発生する致命的な構文バグ**があります。おそらくそれによって即座に `ValueError` が出力されているはずです。
+
+### 🔍 主な原因：条件分岐の書き方ミス
+```python
+if args.gpu_type != "cuda" or "mps":
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\". ")
+```
+この行はPythonの仕様上、**常に `True` を返してしまいます**。  
+理由：`or` の右辺が `"mps"` という文字列のみだと評価され、「空でない文字列は真(True)」とみなされるためです。つまり、`gpu_type` が何であっても必ず例外が発生します。
+
+### ✅ 修正方法
+```python
+# 誤: if args.gpu_type != "cuda" or "mps":
+if args.gpu_type not in ["cuda", "mps"]:
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\".")
+```
+
+---
+
+### ⚠️ その他の潜在的な問題・注意点
+1. **コードが途中で切れています**  
+   提示されたコードは `dst_txt_filename = ...` で終了しており、以降のファイル書き込みやセグメント化処理がありません。このまま保存して実行すると `SyntaxError` や `NameError` が発生します。
+
+2. `pickle.load()` にエラーハンドリングがない  
+   ランドマークファイルが存在しない・読み込めない場合、`FileNotFoundError` や `EOFError` で即座に落ちます。以下のように囲むことを推奨します：
+   ```python
+   try:
+       with open(landmarks_filename, "rb") as f:
+           landmarks = pickle.load(f)
+   except Exception:
+       landmarks = None
+   ```
+
+3. `seg_vid_len`, `seg_aud_len` が定義されていますが使われていません  
+   実行エラーにはなりませんが、後続のセグメント分割処理で必要になる変数です。実装が未完成の場合は注意してください。
+
+4. データセットのディレクトリ構造・`.txt` ファイル形式との整合性  
+   LRS2/LRS3 のパス生成ロジックは特定のファイル構成を前提としています。実際のデータ配置と異なる場合、`FileNotFoundError` や `IndexError` が発生します。
+
+---
+💡 **次のステップ**  
+上記の修正を試した後でもエラーが出る場合は、ターミナルやIDEに表示される**エラー全文（Traceback）**を教えていただければ、より正確な原因特定と修正コードの提示が可能です。
