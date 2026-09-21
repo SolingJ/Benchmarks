@@ -1,0 +1,58 @@
+以下に解答を示す。
+
+---
+
+## (1) 面積 $S(t)$ の導出
+
+直線 $\ell$ は方向ベクトル $(1,\,0,\,-1)$ を持つ。$\ell$ に垂直な平面の法線は $(1,\,0,\,-1)$ に平行であるから、点 $(\cos t,\,0,\,1-\cos t)$ を通り $\ell$ に垂直な平面 $H$ の方程式は
+$$x - z = \cos t - (1-\cos t) = 2\cos t - 1 \tag{1}$$
+
+次に、$\ell$ を軸とする円柱座標 $(w,\,u,\,v)$ を導入する。原点を $\ell$ の端点 $(0,0,1)$（円錐の頂点）に置き、
+$$\mathbf{e}_w = \frac{(1,0,-1)}{\sqrt2},\qquad 
+\mathbf{e}_u = \frac{(1,0,1)}{\sqrt2},\qquad 
+\mathbf{e}_v = (0,1,0)$$
+とする。座標変換は
+$$x=\frac{w+u}{\sqrt2},\quad y=v,\quad z=1-\frac{w-u}{\sqrt2} \tag{2}$$
+
+(1) に代入すると、平面 $H$ は
+$$\frac{w+u}{\sqrt2}-\Bigl(1-\frac{w-u}{\sqrt2}\Bigr)=2\cos t-1
+\;\Longrightarrow\; w\sqrt2=2\cos t
+\;\Longrightarrow\; w=\sqrt2\,\cos t \tag{3}$$
+
+円錐 $C:\;\sqrt{x^2+y^2}\leqq 1-z$ に (2) を代入すると、
+$$\frac{(w+u)^2}{2}+v^2\leqq\frac{(w-u)^2}{2}
+\;\Longrightarrow\; v^2\leqq-2wu \tag{4}$$
+
+また $0\leqq z\leqq1$ より $w-\sqrt2\leqq u\leqq0$ である。
+
+$\ell$ の周りに回転してできる立体 $C'$ において、位置 $w$ における $\ell$ に垂直な断面は、円錐の点 $(u,v)$ が $\ell$ から距離 $\sqrt{u^2+v^2}$ で回転する円の集合の和である。その半径の最大値は (4) の境界 $v^2=-2wu$ 上で
+$$r^2=u^2-2wu=u(u-2w)$$
+を $u\in[w-\sqrt2,\,0]$ で最大化すればよい。右辺は $u=w$ を頂点とする下に凸の放物線であり、区間 $[w-\sqrt2,\,0]$ において最大値は左端 $u=w-\sqrt2$ でとる：
+$$r_{\max}^2=(w-\sqrt2)(-w-\sqrt2)=2-w^2$$
+
+したがって断面は半径 $\sqrt{2-w^2}$ の円板であり、その面積は
+$$S(w)=\pi(2-w^2)$$
+
+(3) $w=\sqrt2\cos t$ を代入して、
+$$\boxed{\,S(t)=2\pi\sin^2t\qquad\left(0\leqq t\leqq\dfrac{\pi}{2}\right)\,} \tag{5}$$
+
+---
+
+## (2) 体積 $V$ の計算
+
+$\ell$ 上の弧長要素は
+$$ds=\sqrt{(\cos't)^2+(1-\cos t)'^2}\;dt
+=\sqrt{\sin^2t+\sin^2t}\;dt=\sqrt2\,\sin t\;dt$$
+
+(5) を用いて、$\ell$ に垂直な断面の面積を $ds$ で積分すれば体積が得られる：
+$$V=\int_0^{\pi/2}S(t)\,ds
+=2\sqrt2\,\pi\int_0^{\pi/2}\sin^3t\;dt$$
+
+$\displaystyle\int_0^{\pi/2}\sin^3t\,dt
+=\int_0^{\pi/2}(1-\cos^2t)\sin t\,dt
+=\Bigl[-\cos t+\frac{\cos^3t}{3}\Bigr]_0^{\pi/2}
+=1-\frac13=\frac23$
+
+ゆえに
+$$V=2\sqrt2\,\pi\cdot\frac23
+=\boxed{\dfrac{4\sqrt2\,\pi}{3}}$$

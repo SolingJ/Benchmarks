@@ -1,0 +1,507 @@
+# テトリス + 不協和音なしBGM
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Tetris with BGM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: 'Courier New', monospace;
+  color: #eee;
+  overflow: hidden;
+}
+#game-container {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+canvas {
+  border: 3px solid #0f3460;
+  background: #16213e;
+  box-shadow: 0 0 30px rgba(15, 52, 96, 0.5);
+}
+#sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 140px;
+}
+.panel {
+  background: #16213e;
+  border: 2px solid #0f3460;
+  padding: 12px;
+  text-align: center;
+}
+.panel h3 {
+  font-size: 12px;
+  color: #e94560;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.panel .value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+}
+#next-canvas {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+#controls {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #aaa;
+}
+#start-btn {
+  padding: 10px 20px;
+  background: #e94560;
+  border: none;
+  color: white;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+#start-btn:hover { background: #c73652; }
+#bgm-status {
+  font-size: 10px;
+  color: #53d8a8;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="board" width="240" height="480"></canvas>
+  <div id="sidebar">
+    <button id="start-btn">▶ START</button>
+    <div class="panel"><h3>Score</h3><div class="value" id="score">0</div></div>
+    <div class="panel"><h3>Level</h3><div class="value" id="level">1</div></div>
+    <div class="panel"><h3>Lines</h3><div class="value" id="lines">0</div></div>
+    <div class="panel"><h3>Next</h3><canvas id="next-canvas" width="80" height="80"></canvas></div>
+    <div class="panel"><h3>BGM</h3><div id="bgm-status">● 再生中</div></div>
+    <div class="panel" id="controls">
+      ← → : 移動<br>
+      ↑ : 回転<br>
+      ↓ : 落下<br>
+      Space : ハードドロップ<br>
+      P : ポーズ
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ AUDIO ENGINE (Dissonance-free BGM) ============
+const AudioEngine = (() => {
+  let ctx, masterGain, compressor;
+  let playing = false;
+  let melodyInterval, chordInterval;
+  const BPM = 130;
+  const beatDur = 60 / BPM;
+
+  // Pentatonic scale (C major pentatonic) - inherently consonant
+  // C4=261.63 D4=293.66 E4=329.63 G4=392.00 A4=440.00
+  const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00]; // C D E G A (C4)
+  const SCALE_HIGH = [523.25, 587.33, 659.26, 783.99, 880.00]; // C5 A5
+
+  // Chord progressions using only consonant intervals (root + fifth, root + third)
+  const CHORDS = [
+    { notes: [130.81, 196.00], dur: 2 },   // C2 + G3 (perfect fifth)
+    { notes: [146.83, 220.00], dur: 2 },   // D3 + A4 (perfect fifth)
+    { notes: [164.81, 246.94], dur: 2 },   // E3 + B4 (perfect fifth)
+    { notes: [174.61, 261.63], dur: 2 },   // F3 + C5 (perfect fifth)
+    { notes: [196.00, 293.66], dur: 2 },   // G3 + D5 (perfect fifth)
+    { notes: [220.00, 329.63], dur: 2 },   // A4 + E5 (perfect fifth)
+  ];
+
+  // Melody patterns using only pentatonic scale - no tritones, no minor seconds
+  const MELODY_PATTERNS = [
+    [0, 1, 2, 3, 2, 1, 0],
+    [3, 4, 3, 2, 1, 0, 1, 2],
+    [4, 3, 2, 1, 0, 1, 2, 3],
+    [2, 3, 4, 4, 3, 2, 1],
+    [0, 2, 4, 3, 2, 1, 0],
+    [1, 0, 1, 2, 3, 4, 3, 2],
+  ];
+
+  function init() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.3;
+
+    // Compressor to prevent harsh peaks
+    compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -20;
+    compressor.knee.value = 10;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.005;
+    compressor.release.value = 0.1;
+
+    masterGain.connect(compressor);
+    compressor.connect(ctx.destination);
+  }
+
+  function playNote(freq, duration, type = 'sine', gainVal = 0.12) {
+    if (!ctx || !playing) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+
+    // Smooth envelope to avoid clicks
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  }
+
+  function playChord(notes, dur) {
+    notes.forEach(f => playNote(f, dur * beatDur, 'sine', 0.06));
+  }
+
+  function startBGM() {
+    if (!ctx) init();
+    if (ctx.state === 'suspended') ctx.resume();
+    playing = true;
+
+    let chordIdx = 0;
+    let melodyIdx = 0;
+    let beatCount = 0;
+
+    // Chord progression loop
+    chordInterval = setInterval(() => {
+      const chord = CHORDS[chordIdx % CHORDS.length];
+      playChord(chord.notes, chord.dur);
+      chordIdx++;
+    }, beatDur * 4 * 1000);
+
+    // Melody loop (plays on every beat)
+    melodyInterval = setInterval(() => {
+      const pattern = MELODY_PATTERNS[melodyIdx % MELODY_PATTERNS.length];
+      const noteIdx = pattern[beatCount % pattern.length];
+      // Alternate between low and high octave for variety
+      const freqs = beatCount % 4 < 2 ? SCALE : SCALE_HIGH;
+      playNote(freqs[noteIdx], beatDur * 0.8, 'triangle', 0.1);
+
+      // Add a soft bass note every 4 beats
+      if (beatCount % 4 === 0) {
+        const rootFreq = CHORDS[chordIdx % CHORDS.length].notes[0];
+        playNote(rootFreq / 2, beatDur * 3.5, 'sine', 0.08);
+      }
+
+      // Add a soft high harmony every 8 beats (perfect fifth above melody)
+      if (beatCount % 8 === 4) {
+        const pattern = MELODY_PATTERNS[melodyIdx % MELODY_PATTERNS.length];
+        const noteIdx2 = pattern[beatCount % pattern.length];
+        // Find the perfect fifth in our scale
+        const fifthMap = [0, 1, 2, 3, 4, 0, 1, 2]; // pentatonic fifth mapping
+        playNote(SCALE_HIGH[fifthMap[noteIdx2]], beatDur * 2, 'sine', 0.04);
+      }
+
+      beatCount++;
+    }, beatDur * 1000);
+  }
+
+  function stopBGM() {
+    playing = false;
+    clearInterval(melodyInterval);
+    clearInterval(chordInterval);
+  }
+
+  return { init, startBGM, stopBGM };
+})();
+
+// ============ TETRIS GAME ============
+const canvas = document.getElementById('board');
+const ctx2d = canvas.getContext('2d');
+const nextCanvas = document.getElementById('next-canvas');
+const nctx = nextCanvas.getContext('2d');
+
+const COLS = 10, ROWS = 20, BLOCK = 24;
+const board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+const PIECES = {
+  I: { shape: [[1,1,1,1]], color: '#00f5ff' },
+  O: { shape: [[1,1],[1,1]], color: '#ffe600' },
+  T: { shape: [[0,1,0],[1,1,1]], color: '#b44dff' },
+  S: { shape: [[0,1,1],[1,1,0]], color: '#00ff87' },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '#ff3e3e' },
+  J: { shape: [[1,0,0],[1,1,1]], color: '#4d9fff' },
+  L: { shape: [[0,0,1],[1,1,1]], color: '#ff8c00' }
+};
+
+const PIECE_NAMES = Object.keys(PIECES);
+let currentPiece, nextPiece, x, y, score, lines, level, gameOver, paused;
+let dropCounter, lastTime, animFrame;
+
+function randomPiece() {
+  const name = PIECE_NAMES[Math.floor(Math.random() * PIECE_NAMES.length)];
+  return { shape: PIECES[name].shape.map(r => [...r]), color: PIECES[name].color };
+}
+
+function rotate(shape) {
+  const rows = shape.length, cols = shape[0].length;
+  const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      rotated[c][rows - 1 - r] = shape[r][c];
+  return rotated;
+}
+
+function collides(shape, px, py) {
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[0].length; c++)
+      if (shape[r][c]) {
+        const nx = px + c, ny = py + r;
+        if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+        if (ny >= 0 && board[ny][nx]) return true;
+      }
+  return false;
+}
+
+function lock() {
+  const shape = currentPiece.shape;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[0].length; c++)
+      if (shape[r][c]) board[y + r][x + c] = currentPiece.color;
+
+  // Clear lines
+  let cleared = 0;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r].every(v => v)) {
+      board.splice(r, 1);
+      board.unshift(Array(COLS).fill(0));
+      cleared++;
+      r++;
+    }
+  }
+
+  if (cleared) {
+    const pts = [0, 100, 300, 500, 800];
+    score += pts[cleared] * level;
+    lines += cleared;
+    level = Math.floor(lines / 10) + 1;
+    updateUI();
+  }
+
+  currentPiece = nextPiece;
+  nextPiece = randomPiece();
+  x = Math.floor((COLS - currentPiece.shape[0].length) / 2);
+  y = 0;
+
+  if (collides(currentPiece.shape, x, y)) {
+    gameOver = true;
+    drawBoard();
+    ctx2d.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+    ctx2d.fillStyle = '#e94560';
+    ctx2d.font = 'bold 28px Courier New';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
+    ctx2d.fillStyle = '#aaa';
+    ctx2d.font = '14px Courier New';
+    ctx2d.fillText('Press START to retry', canvas.width / 2, canvas.height / 2 + 25);
+  }
+
+  drawNext();
+}
+
+function hardDrop() {
+  while (!collides(currentPiece.shape, x, y + 1)) y++;
+  lock();
+}
+
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('level').textContent = level;
+  document.getElementById('lines').textContent = lines;
+}
+
+function drawBlock(c, r, color) {
+  c.fillStyle = color;
+  c.fillRect(r * BLOCK + 1, c === ctx2d ? (r * BLOCK + 1) : (c === nctx ? (r * BLOCK + 1) : 0), BLOCK - 2, BLOCK - 2);
+}
+
+function drawBoard() {
+  ctx2d.fillStyle = '#16213e';
+  ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines
+  ctx2d.strokeStyle = 'rgba(255,255,255,0.04)';
+  for (let i = 0; i <= COLS; i++) {
+    ctx2d.beginPath(); ctx2d.moveTo(i * BLOCK, 0); ctx2d.lineTo(i * BLOCK, canvas.height); ctx2d.stroke();
+  }
+  for (let i = 0; i <= ROWS; i++) {
+    ctx2d.beginPath(); ctx2d.moveTo(0, i * BLOCK); ctx2d.lineTo(canvas.width, i * BLOCK); ctx2d.stroke();
+  }
+
+  // Locked blocks
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) {
+        ctx2d.fillStyle = board[r][c];
+        ctx2d.fillRect(c * BLOCK + 1, r * BLOCK + 1, BLOCK - 2, BLOCK - 2);
+        // Highlight
+        ctx2d.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx2d.fillRect(c * BLOCK + 1, r * BLOCK + 1, BLOCK - 2, 3);
+      }
+
+  // Ghost piece
+  if (currentPiece && !gameOver) {
+    let gy = y;
+    while (!collides(currentPiece.shape, x, gy + 1)) gy++;
+    ctx2d.globalAlpha = 0.2;
+    for (let r = 0; r < currentPiece.shape.length; r++)
+      for (let c = 0; c < currentPiece.shape[0].length; c++)
+        if (currentPiece.shape[r][c]) {
+          ctx2d.fillStyle = currentPiece.color;
+          ctx2d.fillRect((x + c) * BLOCK + 1, (gy + r) * BLOCK + 1, BLOCK - 2, BLOCK - 2);
+        }
+    ctx2d.globalAlpha = 1;
+  }
+
+  // Current piece
+  if (currentPiece && !gameOver) {
+    for (let r = 0; r < currentPiece.shape.length; r++)
+      for (let c = 0; c < currentPiece.shape[0].length; c++)
+        if (currentPiece.shape[r][c]) {
+          ctx2d.fillStyle = currentPiece.color;
+          ctx2d.fillRect((x + c) * BLOCK + 1, (y + r) * BLOCK + 1, BLOCK - 2, BLOCK - 2);
+          ctx2d.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx2d.fillRect((x + c) * BLOCK + 1, (y + r) * BLOCK + 1, BLOCK - 2, 3);
+        }
+  }
+}
+
+function drawNext() {
+  nctx.fillStyle = 'transparent';
+  nctx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  if (!nextPiece) return;
+  const s = nextPiece.shape;
+  const offX = (80 - s[0].length * 16) / 2;
+  const offY = (80 - s.length * 16) / 2;
+  for (let r = 0; r < s.length; r++)
+    for (let c = 0; c < s[0].length; c++)
+      if (s[r][c]) {
+        nctx.fillStyle = nextPiece.color;
+        nctx.fillRect(offX + c * 16, offY + r * 16, 14, 14);
+      }
+}
+
+function gameLoop(time) {
+  animFrame = requestAnimationFrame(gameLoop);
+  if (gameOver || paused) return;
+
+  const delta = time - lastTime;
+  dropCounter += delta;
+  const speed = Math.max(80, 800 - level * 60);
+
+  if (dropCounter > speed) {
+    dropCounter = 0;
+    if (!collides(currentPiece.shape, x, y + 1)) {
+      y++;
+    } else {
+      lock();
+    }
+  }
+  drawBoard();
+}
+
+function startGame() {
+  board.forEach((row, i) => row.fill(0));
+  score = 0; lines = 0; level = 1; gameOver = false; paused = false;
+  currentPiece = randomPiece();
+  nextPiece = randomPiece();
+  x = Math.floor((COLS - currentPiece.shape[0].length) / 2);
+  y = 0;
+  dropCounter = 0; lastTime = performance.now();
+  updateUI(); drawNext();
+
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+// Controls
+document.addEventListener('keydown', e => {
+  if (gameOver || paused) return;
+  const shape = currentPiece.shape;
+
+  switch (e.key) {
+    case 'ArrowLeft':
+      if (!collides(shape, x - 1, y)) x--;
+      break;
+    case 'ArrowRight':
+      if (!collides(shape, x + 1, y)) x++;
+      break;
+    case 'ArrowDown':
+      if (!collides(shape, x, y + 1)) { y++; score += 1; updateUI(); }
+      dropCounter = 0;
+      break;
+    case 'ArrowUp':
+      const rotated = rotate(shape);
+      // Wall kick attempts
+      for (const kick of [0, -1, 1, -2, 2]) {
+        if (!collides(rotated, x + kick, y)) {
+          currentPiece.shape = rotated;
+          x += kick;
+          break;
+        }
+      }
+      break;
+    case ' ':
+      e.preventDefault();
+      hardDrop(); score += 2; updateUI();
+      dropCounter = 0;
+      break;
+    case 'p': case 'P':
+      paused = !paused;
+      if (!paused) lastTime = performance.now();
+      break;
+  }
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  AudioEngine.startBGM();
+  startGame();
+});
+
+// Initial draw
+drawBoard();
+</script>
+</body>
+</html>
+```
+
+## 特徴
+
+| 項目 | 内容 |
+|------|------|
+| **BGMの仕組み** | Web Audio API でリアルタイム生成（オシレーター） |
+| **不協和音対策** | Cメジャープentatonicスケール（C D E G A）のみ使用。完全5度・長3度のコード進行のみ |
+| **構成** | 低音ベース + メロディ + 高音ハーモニーの3層 |
+| **テンポ** | 130 BPM、アップビートなリズム |
+
+## 操作方法
+
+- **← →** : 左右移動
+- **↑** : 回転（ウォールキック対応）
+- **↓** : ソフトドロップ
+- **Space** : ハードドロップ
+- **P** : ポーズ
+
+「▶ START」ボタンを押すとBGMが流れ始め、ゲームも開始します。

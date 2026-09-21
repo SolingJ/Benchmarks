@@ -1,0 +1,51 @@
+## エラーの原因
+
+最も大きな問題は、**GPU チェックの条件式が常に `True` になってしまう**という Python のよくあるバグです。
+
+### 🔴 原因：`if args.gpu_type != "cuda" or "mps":`
+
+```python
+# ❌ 現在のコード（必ずエラーになる）
+if args.gpu_type != "cuda" or "mps":
+    raise ValueError("Invalid GPU type...")
+```
+
+Python はこれを以下のように評価します：
+
+```python
+(args.gpu_type != "cuda") or ("mps")
+```
+
+- `"mps"` は空文字列ではない → **常に真（truthy）**
+- したがって `or` の右辺が真なので、**左辺の結果に関わらず全体が真**になる
+- つまり、どんな値を渡しても `raise ValueError(...)` が実行される
+
+| `--gpu_type` | `(args.gpu_type != "cuda")` | `"mps"` (truthy) | 結果 |
+|---|---|---|---|
+| `"cuda"` | `False` | ✅ 真 | **エラー** ❌ |
+| `"mps"` | `True` | ✅ 真 | **エラー** ❌ |
+| `"cpu"` | `True` | ✅ 真 | **エラー** ❌ |
+
+### ✅ 修正方法
+
+```python
+# ✅ 正しい書き方
+if args.gpu_type not in ["cuda", "mps"]:
+    raise ValueError("Invalid GPU type. Valid values for gpu_type are \"cuda\" and \"mps\".")
+```
+
+---
+
+## その他の潜在的な問題
+
+| # | 箇所 | 問題 |
+|---|------|------|
+| 2 | `os.path.normpath(data_filename).split(os.sep)[-3]` | パスの階層が 3 未満だと `IndexError` が発生する可能性があります。 |
+| 3 | LRS2 の subset ファイル読み込み (`val.txt`, `test.txt`, `pretrain.txt`) | 指定したパスに `.txt` ファイルが存在しない場合、`FileNotFoundError` になります。 |
+| 4 | スクリプトの途中終了 | コードが `dst_txt_filename = ...` で途切れており、**実際にデータを保存・CSV に書き出す処理がありません**。修正しても何も起きずに終了します。 |
+
+---
+
+## まとめ
+
+まず **1 つ目の条件式を修正するだけでエラーは解消されます**。その上で、スクリプトの残りの処理（動画/音声/テキストの保存、ラベル CSV の出力）を実装する必要があります。

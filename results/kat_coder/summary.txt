@@ -1,0 +1,9 @@
+Model: kat_coder
+Model Key: kwaipilot_kat-coder-v2.5-dev
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 36.734
+Average TTFT: 4.266 sec

@@ -1,0 +1,9 @@
+Model: qwen3.8-35b-a3b-distill
+Model Key: qwen3.8-35b-a3b-distill
+
+Questions: 4
+Successful: 4
+Failed: 0
+
+Average TPS: 41.457
+Average TTFT: 2.706 sec
